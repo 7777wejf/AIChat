@@ -1,0 +1,22 @@
+env:
+  SRC_URL: "https://aka.doubaocdn.com/s/UPXnqXyvnc"
+
+task:
+  name: Build IPA
+  macos_instance:
+    image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
+  build_script:
+    - curl -sL -o src.zip "$SRC_URL"
+    - unzip -q src.zip
+    - cd AIChat
+    - sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+    - xcodebuild -version
+    - xcodebuild -project AIChat.xcodeproj -target AIChat -configuration Release -sdk iphoneos SYMROOT=$PWD/build OBJROOT=$PWD/obj CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" build 2>&1 | tee build.log
+    - mkdir -p Payload
+    - cp -R build/Release-iphoneos/AIChat.app Payload/
+    - zip -qry AIChat.ipa Payload
+    - ls -lh AIChat.ipa
+  ipa_artifact:
+    path: "AIChat/AIChat.ipa"
+  log_artifact:
+    path: "AIChat/build.log"
