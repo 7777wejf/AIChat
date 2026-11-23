@@ -1,0 +1,61 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      SRC_URL: "https://aka.doubaocdn.com/s/UPXnqXyvnc"
+    steps:
+      - name: 拉取源码包
+        run: |
+          curl -sL -o src.zip "$SRC_URL"
+          unzip -q src.zip
+          ls -la AIChat
+
+      - name: 编译
+        run: |
+          set -o pipefail
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+          cd AIChat
+          xcodebuild \
+            -project AIChat.xcodeproj \
+            -target AIChat \
+            -configuration Release \
+            -sdk iphoneos \
+            SYMROOT="$PWD/build" \
+            OBJROOT="$PWD/obj" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build 2>&1 | tee build.log
+
+      - name: 打包 ipa
+        run: |
+          cd AIChat
+          mkdir -p Payload
+          cp -R build/Release-iphoneos/AIChat.app Payload/
+          zip -qry AIChat.ipa Payload
+          ls -lh AIChat.ipa
+
+      - name: 发布产物
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: AIChat 未签名 ipa
+          body: 未签名 IPA，请用 Sideloadly / ESign 签名后安装。build.log 是编译日志。
+          files: |
+            AIChat/AIChat.ipa
+            AIChat/build.log
+          fail_on_unmatched_files: false
